@@ -11,10 +11,23 @@ class RedisService
 
     public function __construct()
     {
-        $this->redis = new Redis();
-        $this->redis->connect(env('redis.host'), (int) env('redis.port'));
-
+        $host = env('redis.host', 'redis');
+        $port = (int) env('redis.port', 6379);
+    
+        $this->redis = new \Redis();
+        $this->redis->connect($host, $port);
+    
         $this->envPrefix = env('CI_ENVIRONMENT') === 'production' ? 'prod:' : 'dev:';
+    }
+
+    public function getPrefix(): string
+    {
+        return $this->envPrefix;
+    }
+
+    public function getKeysWithPrefix(string $prefix): array
+    {
+        return $this->redis->keys($this->envPrefix . $prefix . '*');
     }
 
     public function set(string $key, array $data): bool
