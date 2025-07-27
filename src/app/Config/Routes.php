@@ -17,6 +17,7 @@ $routes->get('/', 'Home::index');
 $routes->group('api', ['namespace' => 'App\Controllers'], function ($routes) {
     $routes->post('coasters/(:segment)/wagons', 'CoasterController::addWagon/$1');
     $routes->delete('coasters/(:segment)/wagons/(:segment)', 'CoasterController::deleteWagon/$1/$2');
+    $routes->get('coasters/(:segment)/status', 'CoasterController::getStatus/$1');
     $routes->resource('coasters', ['controller' => 'CoasterController']);
 });
 

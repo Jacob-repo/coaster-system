@@ -85,6 +85,120 @@ class CoasterController extends ResourceController
         $this->redis->set("coaster:$coasterId", $coaster);
     
         return $this->respondDeleted(["message" => "Wagon usunięty."]);
-    }    
+    }
+
+    public function update($coasterId = null)
+    {
+        $data = $this->request->getJSON(true);
+
+        if (!$this->redis->exists("coaster:$coasterId")) {
+            return $this->failNotFound("Kolejka o ID $coasterId nie istnieje.");
+        }
+
+        $coaster = $this->redis->get("coaster:$coasterId");
+
+        unset($data['dl_trasy']);
+
+        $updated = array_merge($coaster, $data);
+
+        $this->redis->set("coaster:$coasterId", $updated);
+
+        return $this->respondUpdated($updated);
+    }
+
+    public function getStatus($coasterId)
+    {
+        if (!$this->redis->exists("coaster:$coasterId")) {
+            return $this->failNotFound("Kolejka o ID $coasterId nie istnieje.");
+        }
+    
+        $coaster = $this->redis->get("coaster:$coasterId");
+    
+        $wagons = $coaster['wagons'] ?? [];
+
+        $avgSpeed = $this->avgSpeed($wagons);
+        if ($avgSpeed <= 0) {
+            return $this->failServerError("Nieprawidłowa prędkość wagonu.");
+        }
+    
+        $requiredPersonnel = 1 + count($coaster['wagons']) * 2;
+        $coaster['avg_speed'] = $avgSpeed;
+    
+        $coaster['personnel'] = [
+            'required' => $requiredPersonnel,
+            'current'  => $coaster['liczba_personelu'],
+            'status'   => $this->evaluatePersonnelStatus($coaster['liczba_personelu'], $requiredPersonnel),
+        ];
+    
+        $maxClients = $this->calculateMaxClients($coaster['wagons'], $coaster['dl_trasy'], $coaster['godziny_od'], $coaster['godziny_do'], $avgSpeed);
+        $coaster['capacity'] = [
+            'required_clients' => $coaster['liczba_klientow'],
+            'max_capacity'     => $maxClients,
+            'status'           => $this->evaluateCapacityStatus($maxClients, $coaster['liczba_klientow']),
+        ];
+    
+        return $this->respond($coaster);
+    }
+    
+    private function avgSpeed(array $wagons): float
+    {
+        if (empty($wagons)) return 0;
+    
+        $sum = 0;
+        foreach ($wagons as $w) {
+            $sum += $w['predkosc_wagonu'] ?? 0;
+        }
+    
+        return count($wagons) > 0 ? $sum / count($wagons) : 0;
+    }
+
+    private function evaluatePersonnelStatus(int $current, int $required): string
+    {
+        if ($current < $required) {
+            return "Brakuje " . ($required - $current) . " pracowników";
+        } elseif ($current > $required) {
+            return "Nadmiar " . ($current - $required) . " pracowników";
+        }
+
+        return "OK";
+    }
+
+    private function evaluateCapacityStatus(int $maxCapacity, int $requiredClients): string
+    {
+        if ($maxCapacity < $requiredClients) {
+            return "Brakuje przepustowości dla " . ($requiredClients - $maxCapacity) . " klientów";
+        } elseif ($maxCapacity > 2 * $requiredClients) {
+            return "Zbyt duża przepustowość (nadmiar dla " . ($maxCapacity - 2 * $requiredClients) . " klientów)";
+        }
+
+        return "OK";
+    }
+
+    private function calculateMaxClients(array $wagons, int $dlTrasy, string $od, string $do, float $avgSpeed): int
+    {
+        if ($avgSpeed <= 0) return 0;
+
+        $start = \DateTime::createFromFormat('H:i', $od);
+        $end = \DateTime::createFromFormat('H:i', $do);
+        if (!$start || !$end) return 0;
+
+        $minutesAvailable = ($end->getTimestamp() - $start->getTimestamp()) / 60;
+
+        $rideMinutes = ($dlTrasy / $avgSpeed) / 60 + 5;
+
+        if ($rideMinutes <= 0) return 0;
+
+        $capacity = 0;
+        foreach ($wagons as $w) {
+            $ridesPerDay = floor($minutesAvailable / $rideMinutes);
+            $capacity += $ridesPerDay * ($w['ilosc_miejsc'] ?? 0);
+        }
+
+        return (int) $capacity;
+    }
+
+
+
+
     
 }
