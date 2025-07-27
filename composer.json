@@ -1,0 +1,5 @@
+{
+    "require": {
+        "clue/redis-react": "^2.8"
+    }
+}
