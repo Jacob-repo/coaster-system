@@ -40,9 +40,7 @@ $RECYCLE.BIN/
 # Environment Files
 #-------------------------
 # These should never be under version control,
-# as it poses a security risk.
-.env
-env.*
+# as it poses a security risk.x
 .vagrant
 Vagrantfile
 
