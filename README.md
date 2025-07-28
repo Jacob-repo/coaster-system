@@ -62,24 +62,22 @@ php spark coaster:monitor
 
 Tworzenie kolejki:
 
-```json
-{
+`{
   "liczba_personelu": 16,
   "liczba_klientow": 60000,
   "dl_trasy": 1800,
   "godziny_od": "08:00",
   "godziny_do": "16:00"
 }
+
 Dodanie wagonu:
 
 {
   "ilosc_miejsc": 32,
   "predkosc_wagonu": 1.2
 }
-Plik główny
 
 Po uruchomieniu systemu dokumentacja API jest widoczna na stronie głównej (/) w formie HTML.
 
 Licencja
-
 MIT, 2025
